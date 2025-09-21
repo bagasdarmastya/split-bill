@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Split Bill</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Style untuk pesan pop-up */
+        #message-box {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 1000;
+        }
+        #message-box.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+<div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg">
+    <h1 class="text-3xl font-bold text-center mb-4 text-gray-800">Split Bill</h1>
+    <p class="text-center text-sm text-gray-500 mb-6">Hitung tagihan bersama dengan mudah.</p>
+
+    <div id="setup-section" class="space-y-4">
+        <div>
+            <label for="num-people" class="block text-sm font-medium text-gray-700">Jumlah Orang</label>
+            <input type="number" id="num-people" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-3" placeholder="Masukkan jumlah">
+        </div>
+        <div>
+            <label for="people-names" class="block text-sm font-medium text-gray-700">Nama-nama Orang</label>
+            <input type="text" id="people-names" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-3" placeholder="Pisahkan dengan koma (cth: Budi, Ani)">
+        </div>
+        <button id="start-button" class="w-full bg-blue-600 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-colors">Mulai</button>
+    </div>
+
+    <div id="bill-section" class="hidden">
+        <h2 class="text-xl font-semibold mt-6 mb-2 text-gray-800">Daftar Item</h2>
+        <div id="items-list" class="space-y-4 mb-4"></div>
+        
+        <div class="space-y-2 mb-6">
+            <input type="text" id="item-name-input" class="block w-full rounded-xl border-gray-300 shadow-sm p-3" placeholder="Nama item">
+            <input type="number" id="item-price-input" class="block w-full rounded-xl border-gray-300 shadow-sm p-3" placeholder="Harga item (cth: 50000)">
+            <div id="consumers-list" class="flex flex-wrap gap-2 justify-center p-2 rounded-xl bg-gray-50 border border-dashed border-gray-300"></div>
+            <button id="add-item-button" class="w-full bg-green-600 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition-colors">Tambahkan Item</button>
+        </div>
+
+        <h2 class="text-xl font-semibold mb-2 text-gray-800">Biaya Tambahan</h2>
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div>
+                <label for="discount-input" class="block text-sm font-medium text-gray-700">Diskon (%)</label>
+                <input type="number" id="discount-input" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3" placeholder="15">
+            </div>
+            <div>
+                <label for="tax-input" class="block text-sm font-medium text-gray-700">Pajak (%)</label>
+                <input type="number" id="tax-input" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3" placeholder="10">
+            </div>
+            <div>
+                <label for="service-input" class="block text-sm font-medium text-gray-700">Layanan (%)</label>
+                <input type="number" id="service-input" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3" placeholder="5">
+            </div>
+        </div>
+        
+        <!-- Tombol ini sekarang full-width agar tampilannya lebih seimbang -->
+        <button id="calculate-button" class="w-full bg-blue-600 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-colors">Lihat Rincian</button>
+        <button id="reset-button" class="w-full mt-4 bg-gray-400 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-gray-500 transition-colors">Mulai Ulang</button>
+    </div>
+
+    <div id="results-section" class="hidden mt-6 bg-blue-50 p-4 rounded-xl shadow-inner border border-blue-200">
+        <h2 class="text-2xl font-bold mb-2 text-blue-800">Ringkasan Tagihan</h2>
+        <div id="summary-output" class="text-gray-700 space-y-1"></div>
+        <h3 class="text-lg font-bold mt-4 mb-2 text-blue-800">Rincian Per Orang</h3>
+        <div id="per-person-output" class="space-y-4"></div>
+        <div class="grid grid-cols-3 gap-4 mt-6">
+            <button id="recalculate-button" class="w-full bg-gray-400 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-gray-500 transition-colors flex items-center justify-center" aria-label="Kembali">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+            </button>
+            <button id="share-button" class="w-full bg-green-600 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition-colors flex items-center justify-center" aria-label="Bagikan Hasil">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"/>
+                    <circle cx="6" cy="12" r="3"/>
+                    <circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+            </button>
+            <button id="back-to-start-button" class="w-full bg-red-600 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-red-700 transition-colors flex items-center justify-center" aria-label="Kembali ke Awal">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tulisan hak cipta baru ditambahkan di sini -->
+    <p class="mt-6 text-gray-400 text-center" style="font-size: 0.7rem;">© 2025 bagasdarmastya</p>
+</div>
+
+<!-- Elemen untuk pop-up pesan -->
+<div id="message-box"></div>
+
+<script>
+    const setupSection = document.getElementById('setup-section');
+    const billSection = document.getElementById('bill-section');
+    const resultsSection = document.getElementById('results-section');
+    const startButton = document.getElementById('start-button');
+    const calculateButton = document.getElementById('calculate-button');
+    const recalculateButton = document.getElementById('recalculate-button');
+    const shareButton = document.getElementById('share-button');
+    const resetButton = document.getElementById('reset-button');
+    const addItemButton = document.getElementById('add-item-button');
+    const numPeopleInput = document.getElementById('num-people');
+    const peopleNamesInput = document.getElementById('people-names');
+    const itemsList = document.getElementById('items-list');
+    const discountInput = document.getElementById('discount-input');
+    const taxInput = document.getElementById('tax-input');
+    const serviceInput = document.getElementById('service-input');
+    const summaryOutput = document.getElementById('summary-output');
+    const perPersonOutput = document.getElementById('per-person-output');
+    const consumersListDiv = document.getElementById('consumers-list');
+    const backToStartButton = document.getElementById('back-to-start-button');
+    const messageBox = document.getElementById('message-box');
+    
+    let people = [];
+    let items = [];
+    let finalResults = {};
+
+    // Fungsi untuk menampilkan pesan pop-up sementara
+    const showMessage = (message) => {
+        messageBox.textContent = message;
+        messageBox.classList.add('show');
+        setTimeout(() => {
+            messageBox.classList.remove('show');
+        }, 3000);
+    };
+
+    // Fungsi untuk memformat angka menjadi format mata uang Rupiah
+    const formatRupiah = (number) => {
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2 }).format(number);
+    };
+
+    // Fungsi untuk mereset seluruh aplikasi ke kondisi awal
+    const resetApp = () => {
+        people = [];
+        items = [];
+        finalResults = {};
+        numPeopleInput.value = '';
+        peopleNamesInput.value = '';
+        document.getElementById('item-name-input').value = '';
+        document.getElementById('item-price-input').value = '';
+        discountInput.value = '';
+        taxInput.value = '';
+        serviceInput.value = '';
+        itemsList.innerHTML = '';
+        consumersListDiv.innerHTML = '';
+        summaryOutput.innerHTML = '';
+        perPersonOutput.innerHTML = '';
+        
+        setupSection.classList.remove('hidden');
+        billSection.classList.add('hidden');
+        resultsSection.classList.add('hidden');
+    };
+
+    // Handler untuk tombol "Mulai"
+    startButton.addEventListener('click', () => {
+        const numPeople = parseInt(numPeopleInput.value);
+        const namesInput = peopleNamesInput.value.trim();
+
+        if (isNaN(numPeople) || numPeople <= 0) {
+            showMessage('Harap masukkan jumlah orang yang valid.');
+            return;
+        }
+
+        if (namesInput === '') {
+            showMessage('Harap masukkan nama-nama orang.');
+            return;
+        }
+
+        people = namesInput.split(',').map(name => name.trim()).filter(name => name);
+        if (people.length !== numPeople) {
+            showMessage('Jumlah nama tidak sesuai dengan jumlah orang. Harap periksa kembali.');
+            return;
+        }
+
+        setupSection.classList.add('hidden');
+        billSection.classList.remove('hidden');
+        createConsumerCheckboxes();
+    });
+
+    // Membuat tombol untuk memilih konsumen
+    const createConsumerCheckboxes = () => {
+        consumersListDiv.innerHTML = '';
+        people.forEach(name => {
+            const button = document.createElement('button');
+            button.className = 'px-4 py-2 rounded-full border border-gray-300 text-gray-700 hover:bg-blue-100 transition-colors cursor-pointer text-sm';
+            button.textContent = name;
+            button.setAttribute('data-name', name);
+            button.addEventListener('click', () => {
+                button.classList.toggle('bg-blue-500');
+                button.classList.toggle('text-white');
+            });
+            consumersListDiv.appendChild(button);
+        });
+    };
+
+    // Handler untuk tombol "Tambahkan Item"
+    addItemButton.addEventListener('click', () => {
+        const itemName = document.getElementById('item-name-input').value.trim();
+        const itemPrice = parseFloat(document.getElementById('item-price-input').value);
+        const selectedConsumers = Array.from(consumersListDiv.querySelectorAll('.bg-blue-500')).map(btn => btn.getAttribute('data-name'));
+
+        if (!itemName || isNaN(itemPrice) || itemPrice <= 0 || selectedConsumers.length === 0) {
+            showMessage('Harap isi nama item, harga, dan pilih konsumen.');
+            return;
+        }
+
+        items.push({
+            name: itemName,
+            price: itemPrice,
+            consumers: selectedConsumers
+        });
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'bg-gray-50 p-3 rounded-xl border border-gray-200';
+        itemDiv.innerHTML = `
+            <p class="font-semibold">${itemName}</p>
+            <p class="text-sm text-gray-600">Harga: ${formatRupiah(itemPrice)}</p>
+            <p class="text-xs text-gray-500">Dibagi ke: ${selectedConsumers.join(', ')}</p>
+        `;
+        itemsList.appendChild(itemDiv);
+
+        document.getElementById('item-name-input').value = '';
+        document.getElementById('item-price-input').value = '';
+        consumersListDiv.querySelectorAll('.bg-blue-500').forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white');
+        });
+    });
+
+    // Fungsi utama untuk melakukan perhitungan
+    const performCalculation = () => {
+        const discountPercent = parseFloat(discountInput.value) || 0;
+        const taxPercent = parseFloat(taxInput.value) || 0;
+        const servicePercent = parseFloat(serviceInput.value) || 0;
+
+        const personTotals = Object.fromEntries(people.map(name => [name, 0]));
+        const itemByPerson = Object.fromEntries(people.map(name => [name, []]));
+        let totalBill = 0;
+
+        for (const item of items) {
+            const pricePerPerson = item.price / item.consumers.length;
+            totalBill += item.price;
+            for (const consumer of item.consumers) {
+                personTotals[consumer] += pricePerPerson;
+                itemByPerson[consumer].push(`${item.name} (${formatRupiah(pricePerPerson)})`);
+            }
+        }
+        
+        // Hitung diskon
+        const discountAmount = totalBill * (discountPercent / 100);
+        const totalAfterDiscount = totalBill - discountAmount;
+
+        const taxAmount = totalAfterDiscount * (taxPercent / 100);
+        const serviceChargeAmount = totalAfterDiscount * (servicePercent / 100);
+        const totalWithExtras = totalAfterDiscount + taxAmount + serviceChargeAmount;
+
+        for (const name of people) {
+            const personShareOfExtras = (personTotals[name] / totalBill) * (taxAmount + serviceChargeAmount - discountAmount);
+            personTotals[name] += personShareOfExtras;
+        }
+
+        // Simpan hasil untuk fungsi share
+        finalResults = {
+            totalBill,
+            discountPercent,
+            discountAmount,
+            totalAfterDiscount,
+            taxPercent,
+            taxAmount,
+            servicePercent,
+            serviceChargeAmount,
+            totalWithExtras,
+            personTotals,
+            itemByPerson
+        };
+
+        // Tampilkan ringkasan
+        summaryOutput.innerHTML = `
+            <p><strong>Total Biaya Item:</strong> ${formatRupiah(totalBill)}</p>
+            <p><strong>Diskon (${discountPercent}%):</strong> - ${formatRupiah(discountAmount)}</p>
+            <hr class="my-1 border-blue-200">
+            <p><strong>Subtotal:</strong> ${formatRupiah(totalAfterDiscount)}</p>
+            <p><strong>Total Pajak (${taxPercent}%):</strong> ${formatRupiah(taxAmount)}</p>
+            <p><strong>Total Biaya Layanan (${servicePercent}%):</strong> ${formatRupiah(serviceChargeAmount)}</p>
+            <hr class="my-2 border-blue-200">
+            <p class="text-xl font-bold text-blue-700">TOTAL AKHIR: ${formatRupiah(totalWithExtras)}</p>
+        `;
+
+        // Tampilkan rincian per orang
+        perPersonOutput.innerHTML = '';
+        for (const name of people) {
+            const personDiv = document.createElement('div');
+            personDiv.className = 'bg-blue-100 p-3 rounded-lg shadow-inner';
+            personDiv.innerHTML = `
+                <h4 class="font-bold text-blue-800">${name}</h4>
+                <ul class="list-disc list-inside text-sm text-blue-700 mt-1 mb-2">
+                    ${itemByPerson[name].map(item => `<li>${item}</li>`).join('')}
+                </ul>
+                <p class="font-bold mt-2 text-blue-800">Total: ${formatRupiah(personTotals[name])}</p>
+            `;
+            perPersonOutput.appendChild(personDiv);
+        }
+    };
+
+    // Handler untuk tombol "Kembali" (sekarang menggunakan ikon panah)
+    recalculateButton.addEventListener('click', () => {
+        resultsSection.classList.add('hidden');
+        billSection.classList.remove('hidden');
+    });
+
+    // Handler untuk tombol "Lihat Rincian"
+    calculateButton.addEventListener('click', () => {
+        if (items.length === 0) {
+            showMessage('Silakan tambahkan setidaknya satu item.');
+            return;
+        }
+        performCalculation();
+        billSection.classList.add('hidden');
+        resultsSection.classList.remove('hidden');
+    });
+
+    // Handler untuk tombol "Bagikan Hasil" dengan fallback
+    shareButton.addEventListener('click', async () => {
+        let shareText = `--- Ringkasan Tagihan ---\n`;
+        shareText += `Total Biaya Item: ${formatRupiah(finalResults.totalBill)}\n`;
+        shareText += `Diskon (${finalResults.discountPercent}%): - ${formatRupiah(finalResults.discountAmount)}\n`;
+        shareText += `Subtotal: ${formatRupiah(finalResults.totalAfterDiscount)}\n`;
+        shareText += `Total Pajak (${finalResults.taxPercent}%): ${formatRupiah(finalResults.taxAmount)}\n`;
+        shareText += `Total Biaya Layanan (${finalResults.servicePercent}%): ${formatRupiah(finalResults.serviceChargeAmount)}\n`;
+        shareText += `TOTAL AKHIR: ${formatRupiah(finalResults.totalWithExtras)}\n\n`;
+        shareText += `--- Rincian Per Orang ---\n`;
+
+        for (const name of people) {
+            shareText += `\n${name}: ${formatRupiah(finalResults.personTotals[name])}\n`;
+            if (finalResults.itemByPerson[name].length > 0) {
+                shareText += `  Item: ${finalResults.itemByPerson[name].join('; ')}\n`;
+            }
+        }
+
+        // Cek apakah Web Share API didukung
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Hasil Pembagian Tagihan',
+                    text: shareText,
+                });
+            } catch (error) {
+                console.log('Berbagi dibatalkan atau gagal:', error);
+            }
+        } else {
+            // Fallback: Salin ke clipboard
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = shareText;
+            document.body.appendChild(tempTextarea);
+            tempTextarea.select();
+            try {
+                document.execCommand('copy');
+                showMessage('Teks telah disalin ke clipboard!');
+            } catch (err) {
+                console.error('Gagal menyalin teks:', err);
+                showMessage('Gagal menyalin teks.');
+            } finally {
+                document.body.removeChild(tempTextarea);
+            }
+        }
+    });
+
+    // Handler untuk tombol "Mulai Ulang"
+    resetButton.addEventListener('click', resetApp);
+    
+    // Handler untuk tombol "Kembali ke Awal"
+    backToStartButton.addEventListener('click', resetApp);
+</script>
+</body>
+</html>
